@@ -1,0 +1,12 @@
+{
+	"PrivateKeyPath": "key/default.pri",
+	"Local": {
+		"Network": "tcp",
+		"Address": ":6363"
+	},
+	"Remote": {
+		"Network": "tcp",
+		"Address": ":6364"
+	},
+	"Cost": 30
+}
