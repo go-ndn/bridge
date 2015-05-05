@@ -65,9 +65,7 @@ func main() {
 	remote := &face{ndn.NewFace(conn, recv)}
 	defer remote.Close()
 
-	go func() {
-		advertise(local, remote)
-	}()
+	go advertise(local, remote)
 
 	// create remote tunnel
 	for i := range recv {
