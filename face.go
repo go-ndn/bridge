@@ -19,18 +19,18 @@ func (f *face) log(i ...interface{}) {
 	fmt.Printf("[%s] %s", f.RemoteAddr(), fmt.Sprintln(i...))
 }
 
-func (f *face) register(name string, cost uint64) {
+func (f *face) register(name string, cost uint64) error {
 	f.log("register", name)
-	ndn.SendControl(f, "rib", "register", &ndn.Parameters{
+	return ndn.SendControl(f, "rib", "register", &ndn.Parameters{
 		Name:   ndn.NewName(name),
 		Cost:   cost,
 		Origin: 128,
 	}, &key)
 }
 
-func (f *face) unregister(name string) {
+func (f *face) unregister(name string) error {
 	f.log("unregister", name)
-	ndn.SendControl(f, "rib", "unregister", &ndn.Parameters{
+	return ndn.SendControl(f, "rib", "unregister", &ndn.Parameters{
 		Name: ndn.NewName(name),
 	}, &key)
 }

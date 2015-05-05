@@ -97,7 +97,10 @@ func advertise(local, remote *face) {
 					continue
 				}
 				if _, ok := registered[name]; !ok {
-					remote.register(name, advCost)
+					err := remote.register(name, advCost)
+					if err != nil {
+						remote.log(err)
+					}
 				}
 				registered[name] = true
 				break
@@ -108,7 +111,10 @@ func advertise(local, remote *face) {
 				registered[name] = false
 			} else {
 				delete(registered, name)
-				remote.unregister(name)
+				err := remote.unregister(name)
+				if err != nil {
+					remote.log(err)
+				}
 			}
 		}
 
