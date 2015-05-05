@@ -19,10 +19,12 @@ func (f *face) log(i ...interface{}) {
 	fmt.Printf("[%s] %s", f.RemoteAddr(), fmt.Sprintln(i...))
 }
 
-func (f *face) register(name string) {
+func (f *face) register(name string, cost uint64) {
 	f.log("register", name)
 	ndn.SendControl(f, "rib", "register", &ndn.Parameters{
-		Name: ndn.NewName(name),
+		Name:   ndn.NewName(name),
+		Cost:   cost,
+		Origin: 128,
 	}, &key)
 }
 

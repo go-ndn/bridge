@@ -94,11 +94,12 @@ func advertise(local, remote *face) {
 		for _, routes := range localRoutes {
 			name := routes.Name.String()
 			for _, route := range routes.Route {
-				if cost, ok := index[name]; ok && cost < route.Cost+config.Cost {
+				advCost := route.Cost + config.Cost
+				if cost, ok := index[name]; ok && cost < advCost {
 					continue
 				}
 				if _, ok := registered[name]; !ok {
-					remote.register(name)
+					remote.register(name, advCost)
 				}
 				registered[name] = true
 				break
