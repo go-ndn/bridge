@@ -114,7 +114,7 @@ func advertise(local, remote *face) {
 			}
 		}
 
-		time.Sleep(time.Minute)
+		time.Sleep(5 * time.Second)
 	}
 }
 
