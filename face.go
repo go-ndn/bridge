@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/go-ndn/mux"
 	"github.com/go-ndn/ndn"
@@ -49,6 +50,55 @@ func (f *face) fetchRoute() (rib []ndn.RIBEntry) {
 		&rib,
 		128)
 	return
+}
+
+func (f *face) advertise(remote *face) {
+	// true = fresh, false = stale
+	registered := make(map[string]bool)
+	for {
+		localRoutes := f.fetchRoute()
+		remoteRoutes := remote.fetchRoute()
+		index := make(map[string]uint64)
+		for _, routes := range remoteRoutes {
+			name := routes.Name.String()
+			for _, route := range routes.Route {
+				if cost, ok := index[name]; ok && cost <= route.Cost {
+					continue
+				}
+				index[name] = route.Cost
+			}
+		}
+		for _, routes := range localRoutes {
+			name := routes.Name.String()
+			for _, route := range routes.Route {
+				advCost := route.Cost + config.Cost
+				if cost, ok := index[name]; ok && cost < advCost {
+					continue
+				}
+				if _, ok := registered[name]; !ok {
+					err := remote.register(name, advCost)
+					if err != nil {
+						remote.log(err)
+					}
+				}
+				registered[name] = true
+				break
+			}
+		}
+		for name, fresh := range registered {
+			if fresh {
+				registered[name] = false
+			} else {
+				delete(registered, name)
+				err := remote.unregister(name)
+				if err != nil {
+					remote.log(err)
+				}
+			}
+		}
+
+		time.Sleep(5 * time.Second)
+	}
 }
 
 func (f *face) ServeNDN(w ndn.Sender, i *ndn.Interest) {

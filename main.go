@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"time"
 
 	"github.com/go-ndn/ndn"
 )
@@ -65,60 +64,11 @@ func main() {
 	remote := &face{ndn.NewFace(conn, recv)}
 	defer remote.Close()
 
-	go advertise(local, remote)
+	go local.advertise(remote)
 
 	// create remote tunnel
 	for i := range recv {
 		local.ServeNDN(remote, i)
-	}
-}
-
-func advertise(local, remote *face) {
-	// true = fresh, false = stale
-	registered := make(map[string]bool)
-	for {
-		localRoutes := local.fetchRoute()
-		remoteRoutes := remote.fetchRoute()
-		index := make(map[string]uint64)
-		for _, routes := range remoteRoutes {
-			name := routes.Name.String()
-			for _, route := range routes.Route {
-				if cost, ok := index[name]; ok && cost <= route.Cost {
-					continue
-				}
-				index[name] = route.Cost
-			}
-		}
-		for _, routes := range localRoutes {
-			name := routes.Name.String()
-			for _, route := range routes.Route {
-				advCost := route.Cost + config.Cost
-				if cost, ok := index[name]; ok && cost < advCost {
-					continue
-				}
-				if _, ok := registered[name]; !ok {
-					err := remote.register(name, advCost)
-					if err != nil {
-						remote.log(err)
-					}
-				}
-				registered[name] = true
-				break
-			}
-		}
-		for name, fresh := range registered {
-			if fresh {
-				registered[name] = false
-			} else {
-				delete(registered, name)
-				err := remote.unregister(name)
-				if err != nil {
-					remote.log(err)
-				}
-			}
-		}
-
-		time.Sleep(5 * time.Second)
 	}
 }
 
