@@ -42,7 +42,7 @@ func (f *face) fetchRoute() (rib []ndn.RIBEntry) {
 	tlv.UnmarshalByte(
 		fetch.Fetch(f,
 			&ndn.Interest{
-				Name: ndn.NewName("/localhost/nfd/rib/list"),
+				Name: ndn.NewName("/localhop/nfd/rib/list"),
 				Selectors: ndn.Selectors{
 					MustBeFresh: true,
 				},
