@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 
@@ -24,27 +23,33 @@ func main() {
 	flag.Parse()
 
 	// config
-	f, err := os.Open(*configPath)
+	configFile, err := os.Open(*configPath)
 	if err != nil {
 		log(err)
 		return
 	}
-	defer f.Close()
+	defer configFile.Close()
 
-	err = json.NewDecoder(f).Decode(&config)
+	err = json.NewDecoder(configFile).Decode(&config)
 	if err != nil {
 		log(err)
 		return
 	}
 
 	// key
-	pem, err := ioutil.ReadFile(config.PrivateKeyPath)
+	pem, err := os.Open(config.PrivateKeyPath)
 	if err != nil {
 		log(err)
 		return
 	}
-	key.DecodePrivateKey(pem)
-	log("key", key.Name)
+	defer pem.Close()
+
+	key, err = ndn.DecodePrivateKey(pem)
+	if err != nil {
+		log(err)
+		return
+	}
+	log("key", key.Locator())
 
 	// local face
 	conn, err := net.Dial(config.Local.Network, config.Local.Address)

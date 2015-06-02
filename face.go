@@ -26,14 +26,14 @@ func (f *face) register(name string, cost uint64) error {
 		Name:   ndn.NewName(name),
 		Cost:   cost,
 		Origin: 128,
-	}, &key)
+	}, key)
 }
 
 func (f *face) unregister(name string) error {
 	f.log("unregister", name)
 	return ndn.SendControl(f, "rib", "unregister", &ndn.Parameters{
 		Name: ndn.NewName(name),
-	}, &key)
+	}, key)
 }
 
 func (f *face) fetchRoute() (rib []ndn.RIBEntry) {
