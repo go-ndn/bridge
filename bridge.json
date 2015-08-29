@@ -6,7 +6,7 @@
 	},
 	"Remote": {
 		"Network": "tcp",
-		"Address": ":6364"
+		"Address": ":6363"
 	},
 	"Cost": 30
 }

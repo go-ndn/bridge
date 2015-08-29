@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"net"
 	"os"
 
@@ -25,48 +27,40 @@ func main() {
 	// config
 	configFile, err := os.Open(*configPath)
 	if err != nil {
-		log(err)
-		return
+		log.Fatal(err)
 	}
 	defer configFile.Close()
 
 	err = json.NewDecoder(configFile).Decode(&config)
 	if err != nil {
-		log(err)
-		return
+		log.Fatal(err)
 	}
 
 	// key
 	pem, err := os.Open(config.PrivateKeyPath)
 	if err != nil {
-		log(err)
-		return
+		log.Fatal(err)
 	}
 	defer pem.Close()
 
 	key, err = ndn.DecodePrivateKey(pem)
 	if err != nil {
-		log(err)
-		return
+		log.Fatal(err)
 	}
-	log("key", key.Locator())
+	log.Println("key", key.Locator())
 
 	// local face
-	conn, err := net.Dial(config.Local.Network, config.Local.Address)
+	local, err := dialFace(config.Local.Network, config.Local.Address, nil)
 	if err != nil {
-		log(err)
-		return
+		log.Fatal(err)
 	}
-	local := &face{ndn.NewFace(conn, nil)}
 	defer local.Close()
 	// remote face
-	conn, err = net.Dial(config.Remote.Network, config.Remote.Address)
-	if err != nil {
-		log(err)
-		return
-	}
 	recv := make(chan *ndn.Interest)
-	remote := &face{ndn.NewFace(conn, recv)}
+	remote, err := dialFace(config.Remote.Network, config.Remote.Address, recv)
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer remote.Close()
 
 	go local.advertise(remote)
@@ -77,9 +71,19 @@ func main() {
 	}
 }
 
-func log(i ...interface{}) {
-	if !*debug {
+func dialFace(network, address string, recv chan<- *ndn.Interest) (f *face, err error) {
+	conn, err := net.Dial(network, address)
+	if err != nil {
 		return
 	}
-	fmt.Printf("[bridge] %s", fmt.Sprintln(i...))
+	f = &face{
+		Face: ndn.NewFace(conn, recv),
+	}
+	if *debug {
+		f.Logger = log.New(os.Stdout, fmt.Sprintf("[%s] ", conn.RemoteAddr()), log.LstdFlags)
+	} else {
+		f.Logger = log.New(ioutil.Discard, "", 0)
+	}
+	f.Println("face created")
+	return
 }

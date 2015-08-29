@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"time"
 
 	"github.com/go-ndn/mux"
@@ -11,17 +11,11 @@ import (
 
 type face struct {
 	ndn.Face
-}
-
-func (f *face) log(i ...interface{}) {
-	if !*debug {
-		return
-	}
-	fmt.Printf("[%s] %s", f.RemoteAddr(), fmt.Sprintln(i...))
+	*log.Logger
 }
 
 func (f *face) register(name string, cost uint64) error {
-	f.log("register", name)
+	f.Println("register", name)
 	return ndn.SendControl(f, "rib", "register", &ndn.Parameters{
 		Name:   ndn.NewName(name),
 		Cost:   cost,
@@ -30,7 +24,7 @@ func (f *face) register(name string, cost uint64) error {
 }
 
 func (f *face) unregister(name string) error {
-	f.log("unregister", name)
+	f.Println("unregister", name)
 	return ndn.SendControl(f, "rib", "unregister", &ndn.Parameters{
 		Name: ndn.NewName(name),
 	}, key)
@@ -78,7 +72,7 @@ func (f *face) advertise(remote *face) {
 				if _, ok := registered[name]; !ok {
 					err := remote.register(name, advCost)
 					if err != nil {
-						remote.log(err)
+						remote.Println(err)
 					}
 				}
 				registered[name] = true
@@ -92,7 +86,7 @@ func (f *face) advertise(remote *face) {
 				delete(registered, name)
 				err := remote.unregister(name)
 				if err != nil {
-					remote.log(err)
+					remote.Println(err)
 				}
 			}
 		}
@@ -103,12 +97,12 @@ func (f *face) advertise(remote *face) {
 
 func (f *face) ServeNDN(w ndn.Sender, i *ndn.Interest) {
 	go func() {
-		f.log("forward", i.Name)
+		f.Println("forward", i.Name)
 		d, ok := <-f.SendInterest(i)
 		if !ok {
 			return
 		}
-		f.log("receive", d.Name)
+		f.Println("receive", d.Name)
 		w.SendData(d)
 	}()
 }
