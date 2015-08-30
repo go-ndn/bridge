@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net"
 	"os"
 
 	"github.com/go-ndn/ndn"
+	"github.com/go-ndn/packet"
 	"github.com/go-ndn/sink"
 )
 
@@ -74,7 +74,7 @@ func main() {
 }
 
 func dialFace(network, address string, recv chan<- *ndn.Interest) (f *face, err error) {
-	conn, err := net.Dial(network, address)
+	conn, err := packet.Dial(network, address)
 	if err != nil {
 		return
 	}
