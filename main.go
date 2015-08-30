@@ -80,7 +80,7 @@ func dialFace(network, address string, recv chan<- *ndn.Interest) (f *face, err 
 		Face: ndn.NewFace(conn, recv),
 	}
 	if *debug {
-		f.Logger = log.New(os.Stdout, fmt.Sprintf("[%s] ", conn.RemoteAddr()), log.LstdFlags)
+		f.Logger = log.New(os.Stderr, fmt.Sprintf("[%s] ", conn.RemoteAddr()), log.LstdFlags)
 	} else {
 		f.Logger = log.New(ioutil.Discard, "", 0)
 	}
