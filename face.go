@@ -46,6 +46,10 @@ func (f *face) fetchRoute() (rib []ndn.RIBEntry) {
 	return
 }
 
+const (
+	advertiseIntv = 5 * time.Second
+)
+
 func (f *face) advertise(remote *face) {
 	// true = fresh, false = stale
 	registered := make(map[string]bool)
@@ -91,7 +95,7 @@ func (f *face) advertise(remote *face) {
 			}
 		}
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(advertiseIntv)
 	}
 }
 
