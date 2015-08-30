@@ -27,39 +27,39 @@ func main() {
 	// config
 	configFile, err := os.Open(*configPath)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 	defer configFile.Close()
 
 	err = json.NewDecoder(configFile).Decode(&config)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 
 	// key
 	pem, err := os.Open(config.PrivateKeyPath)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 	defer pem.Close()
 
 	key, err = ndn.DecodePrivateKey(pem)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 	log.Println("key", key.Locator())
 
 	// local face
 	local, err := dialFace(config.Local.Network, config.Local.Address, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 	defer local.Close()
 	// remote face
 	recv := make(chan *ndn.Interest)
 	remote, err := dialFace(config.Remote.Network, config.Remote.Address, recv)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 	defer remote.Close()
 
