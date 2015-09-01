@@ -4,13 +4,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"os"
 
+	"github.com/go-ndn/log"
 	"github.com/go-ndn/ndn"
 	"github.com/go-ndn/packet"
-	"github.com/go-ndn/sink"
 )
 
 var (
@@ -23,7 +21,6 @@ var (
 )
 
 func main() {
-	log.SetOutput(sink.Stderr)
 	flag.Parse()
 
 	// config
@@ -52,14 +49,14 @@ func main() {
 	log.Println("key", key.Locator())
 
 	// local face
-	local, err := dialFace(config.Local.Network, config.Local.Address, nil)
+	local, err := newFace(config.Local.Network, config.Local.Address, nil)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer local.Close()
 	// remote face
 	recv := make(chan *ndn.Interest)
-	remote, err := dialFace(config.Remote.Network, config.Remote.Address, recv)
+	remote, err := newFace(config.Remote.Network, config.Remote.Address, recv)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -73,7 +70,7 @@ func main() {
 	}
 }
 
-func dialFace(network, address string, recv chan<- *ndn.Interest) (f *face, err error) {
+func newFace(network, address string, recv chan<- *ndn.Interest) (f *face, err error) {
 	conn, err := packet.Dial(network, address)
 	if err != nil {
 		return
@@ -82,9 +79,9 @@ func dialFace(network, address string, recv chan<- *ndn.Interest) (f *face, err 
 		Face: ndn.NewFace(conn, recv),
 	}
 	if *debug {
-		f.Logger = log.New(sink.Stderr, fmt.Sprintf("[%s] ", conn.RemoteAddr()), log.LstdFlags)
+		f.Logger = log.New(log.Stderr, fmt.Sprintf("[%s] ", conn.RemoteAddr()))
 	} else {
-		f.Logger = log.New(ioutil.Discard, "", 0)
+		f.Logger = log.Discard
 	}
 	f.Println("face created")
 	return

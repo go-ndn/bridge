@@ -1,9 +1,9 @@
 package main
 
 import (
-	"log"
 	"time"
 
+	"github.com/go-ndn/log"
 	"github.com/go-ndn/mux"
 	"github.com/go-ndn/ndn"
 	"github.com/go-ndn/tlv"
@@ -11,7 +11,7 @@ import (
 
 type face struct {
 	ndn.Face
-	*log.Logger
+	log.Logger
 }
 
 func (f *face) register(name string, cost uint64) error {
