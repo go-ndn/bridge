@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	configPath = flag.String("config", "bridge.json", "config path")
-	debug      = flag.Bool("debug", false, "enable logging")
+	flagConfig = flag.String("config", "bridge.json", "config path")
+	flagDebug  = flag.Bool("debug", false, "enable logging")
 )
 
 var (
@@ -24,7 +24,7 @@ func main() {
 	flag.Parse()
 
 	// config
-	configFile, err := os.Open(*configPath)
+	configFile, err := os.Open(*flagConfig)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -78,7 +78,7 @@ func newFace(network, address string, recv chan<- *ndn.Interest) (f *face, err e
 	f = &face{
 		Face: ndn.NewFace(conn, recv),
 	}
-	if *debug {
+	if *flagDebug {
 		f.Logger = log.New(log.Stderr, fmt.Sprintf("[%s] ", conn.RemoteAddr()))
 	} else {
 		f.Logger = log.Discard
