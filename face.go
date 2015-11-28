@@ -33,7 +33,7 @@ func (f *face) unregister(name string) error {
 func (f *face) fetchRoute() (rib []ndn.RIBEntry) {
 	fetch := mux.NewFetcher()
 	fetch.Use(mux.Assembler)
-	tlv.UnmarshalByte(
+	tlv.Unmarshal(
 		fetch.Fetch(f,
 			&ndn.Interest{
 				Name: ndn.NewName("/localhop/nfd/rib/list"),
