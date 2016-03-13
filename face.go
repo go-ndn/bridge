@@ -1,17 +1,40 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/go-ndn/log"
 	"github.com/go-ndn/mux"
 	"github.com/go-ndn/ndn"
+	"github.com/go-ndn/packet"
 	"github.com/go-ndn/tlv"
 )
 
 type face struct {
 	ndn.Face
+	*mux.Fetcher
 	log.Logger
+}
+
+func newFace(network, address string, recv chan<- *ndn.Interest) (f *face, err error) {
+	conn, err := packet.Dial(network, address)
+	if err != nil {
+		return
+	}
+	f = &face{
+		Face:    ndn.NewFace(conn, recv),
+		Fetcher: mux.NewFetcher(),
+	}
+	f.Fetcher.Use(mux.Assembler)
+
+	if *flagDebug {
+		f.Logger = log.New(log.Stderr, fmt.Sprintf("[%s] ", conn.RemoteAddr()))
+	} else {
+		f.Logger = log.Discard
+	}
+	f.Println("face created")
+	return
 }
 
 func (f *face) register(name string, cost uint64) error {
@@ -31,10 +54,8 @@ func (f *face) unregister(name string) error {
 }
 
 func (f *face) fetchRoute() (rib []ndn.RIBEntry) {
-	fetch := mux.NewFetcher()
-	fetch.Use(mux.Assembler)
 	tlv.Unmarshal(
-		fetch.Fetch(f,
+		f.Fetch(f,
 			&ndn.Interest{
 				Name: ndn.NewName("/localhop/nfd/rib/list"),
 				Selectors: ndn.Selectors{
@@ -42,7 +63,8 @@ func (f *face) fetchRoute() (rib []ndn.RIBEntry) {
 				},
 			}),
 		&rib,
-		128)
+		128,
+	)
 	return
 }
 
@@ -56,6 +78,7 @@ func (f *face) advertise(remote *face) {
 	for {
 		localRoutes := f.fetchRoute()
 		remoteRoutes := remote.fetchRoute()
+		// for each name, find the best remote route.
 		index := make(map[string]uint64)
 		for _, routes := range remoteRoutes {
 			name := routes.Name.String()
@@ -66,6 +89,8 @@ func (f *face) advertise(remote *face) {
 				index[name] = route.Cost
 			}
 		}
+		// if any local route is not worse, mark the name as fresh.
+		// if the name is not registered, register it to remote.
 		for _, routes := range localRoutes {
 			name := routes.Name.String()
 			for _, route := range routes.Route {
@@ -83,6 +108,9 @@ func (f *face) advertise(remote *face) {
 				break
 			}
 		}
+		// sweep registered names.
+		// if the name is fresh, mark it as stale for the next iteration.
+		// otherwise, unregister, and clean up.
 		for name, fresh := range registered {
 			if fresh {
 				registered[name] = false

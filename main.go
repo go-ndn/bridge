@@ -3,12 +3,10 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/go-ndn/log"
 	"github.com/go-ndn/ndn"
-	"github.com/go-ndn/packet"
 )
 
 var (
@@ -68,21 +66,4 @@ func main() {
 	for i := range recv {
 		local.ServeNDN(remote, i)
 	}
-}
-
-func newFace(network, address string, recv chan<- *ndn.Interest) (f *face, err error) {
-	conn, err := packet.Dial(network, address)
-	if err != nil {
-		return
-	}
-	f = &face{
-		Face: ndn.NewFace(conn, recv),
-	}
-	if *flagDebug {
-		f.Logger = log.New(log.Stderr, fmt.Sprintf("[%s] ", conn.RemoteAddr()))
-	} else {
-		f.Logger = log.Discard
-	}
-	f.Println("face created")
-	return
 }
