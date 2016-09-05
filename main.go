@@ -64,6 +64,6 @@ func main() {
 
 	// create remote tunnel
 	for i := range recv {
-		local.ServeNDN(remote, i)
+		go local.ServeNDN(remote, i)
 	}
 }

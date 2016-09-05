@@ -128,13 +128,11 @@ func (f *face) advertise(remote *face) {
 }
 
 func (f *face) ServeNDN(w ndn.Sender, i *ndn.Interest) {
-	go func() {
-		f.Println("forward", i.Name)
-		d, ok := <-f.SendInterest(i)
-		if !ok {
-			return
-		}
-		f.Println("receive", d.Name)
-		w.SendData(d)
-	}()
+	f.Println("forward", i.Name)
+	d, ok := <-f.SendInterest(i)
+	if !ok {
+		return
+	}
+	f.Println("receive", d.Name)
+	w.SendData(d)
 }
