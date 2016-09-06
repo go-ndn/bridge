@@ -17,7 +17,7 @@ type face struct {
 	log.Logger
 }
 
-func newFace(network, address string, recv chan<- *ndn.Interest) (f *face, err error) {
+func newFace(ctx *context, network, address string, recv chan<- *ndn.Interest) (f *face, err error) {
 	conn, err := packet.Dial(network, address)
 	if err != nil {
 		return
@@ -28,7 +28,7 @@ func newFace(network, address string, recv chan<- *ndn.Interest) (f *face, err e
 	}
 	f.Fetcher.Use(mux.Assembler)
 
-	if *flagDebug {
+	if ctx.Debug {
 		f.Logger = log.New(log.Stderr, fmt.Sprintf("[%s] ", conn.RemoteAddr()))
 	} else {
 		f.Logger = log.Discard
@@ -37,20 +37,20 @@ func newFace(network, address string, recv chan<- *ndn.Interest) (f *face, err e
 	return
 }
 
-func (f *face) register(name string, cost uint64) error {
+func (f *face) register(ctx *context, name string, cost uint64) error {
 	f.Println("register", name)
 	return ndn.SendControl(f, "rib", "register", &ndn.Parameters{
 		Name:   ndn.NewName(name),
 		Cost:   cost,
 		Origin: 128,
-	}, key)
+	}, ctx.Key)
 }
 
-func (f *face) unregister(name string) error {
+func (f *face) unregister(ctx *context, name string) error {
 	f.Println("unregister", name)
 	return ndn.SendControl(f, "rib", "unregister", &ndn.Parameters{
 		Name: ndn.NewName(name),
-	}, key)
+	}, ctx.Key)
 }
 
 func (f *face) fetchRoute() (rib []ndn.RIBEntry) {
@@ -68,15 +68,11 @@ func (f *face) fetchRoute() (rib []ndn.RIBEntry) {
 	return
 }
 
-const (
-	advertiseIntv = 5 * time.Second
-)
-
-func (f *face) advertise(remote *face) {
+func advertise(ctx *context, remote, local *face, d time.Duration) {
 	// true = fresh, false = stale
 	registered := make(map[string]bool)
 	for {
-		localRoutes := f.fetchRoute()
+		localRoutes := local.fetchRoute()
 		remoteRoutes := remote.fetchRoute()
 		// for each name, find the best remote route.
 		index := make(map[string]uint64)
@@ -94,12 +90,12 @@ func (f *face) advertise(remote *face) {
 		for _, routes := range localRoutes {
 			name := routes.Name.String()
 			for _, route := range routes.Route {
-				advCost := route.Cost + config.Cost
+				advCost := route.Cost + ctx.Cost
 				if cost, ok := index[name]; ok && cost < advCost {
 					continue
 				}
 				if _, ok := registered[name]; !ok {
-					err := remote.register(name, advCost)
+					err := remote.register(ctx, name, advCost)
 					if err != nil {
 						remote.Println(err)
 					}
@@ -116,14 +112,14 @@ func (f *face) advertise(remote *face) {
 				registered[name] = false
 			} else {
 				delete(registered, name)
-				err := remote.unregister(name)
+				err := remote.unregister(ctx, name)
 				if err != nil {
 					remote.Println(err)
 				}
 			}
 		}
 
-		time.Sleep(advertiseIntv)
+		time.Sleep(d)
 	}
 }
 
