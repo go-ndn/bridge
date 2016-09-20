@@ -17,12 +17,12 @@ type face struct {
 	log.Logger
 }
 
-func newFace(ctx *context, network, address string, recv chan<- *ndn.Interest) (f *face, err error) {
+func newFace(ctx *context, network, address string, recv chan<- *ndn.Interest) (*face, error) {
 	conn, err := packet.Dial(network, address)
 	if err != nil {
-		return
+		return nil, err
 	}
-	f = &face{
+	f := &face{
 		Face:    ndn.NewFace(conn, recv),
 		Fetcher: mux.NewFetcher(),
 	}
@@ -34,7 +34,7 @@ func newFace(ctx *context, network, address string, recv chan<- *ndn.Interest) (
 		f.Logger = log.Discard
 	}
 	f.Println("face created")
-	return
+	return f, nil
 }
 
 func (f *face) register(ctx *context, name string, cost uint64) error {
