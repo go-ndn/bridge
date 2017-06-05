@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/go-ndn/log"
-	"github.com/go-ndn/ndn"
 )
 
 func main() {
@@ -15,26 +14,20 @@ func main() {
 	}
 	log.Println("key", ctx.Key.Locator())
 
-	// local face
-	local, err := newFace(ctx, ctx.Local.Network, ctx.Local.Address, nil)
-	if err != nil {
-		log.Println(err)
-		return
+	ch := make(chan *tunnel, 2*len(ctx.Tunnel))
+	for _, tun := range ctx.Tunnel {
+		ch <- tun
+		if tun.Undirected {
+			r := *tun
+			r.Local, r.Remote = r.Remote, r.Local
+			ch <- &r
+		}
 	}
-	defer local.Close()
-	// remote face
-	recv := make(chan *ndn.Interest)
-	remote, err := newFace(ctx, ctx.Remote.Network, ctx.Remote.Address, recv)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	defer remote.Close()
-
-	go advertise(ctx, remote, local, 5*time.Second)
-
-	// create remote tunnel
-	for i := range recv {
-		go local.ServeNDN(remote, i)
+	for tun := range ch {
+		go func(tun *tunnel) {
+			connect(ctx, tun)
+			time.Sleep(tun.Advertise.Interval.Duration)
+			ch <- tun
+		}(tun)
 	}
 }

@@ -14,15 +14,23 @@ Usage of ./bridge:
 
 ```
 {
-	"PrivateKeyPath": "key/default.pri",
-	"Local": {
-		"Network": "tcp",
-		"Address": ":6363"
-	},
-	"Remote": {
-		"Network": "tcp",
-		"Address": ":6364"
-	},
-	"Cost": 30
+  "PrivateKeyPath": "key/default.pri",
+  "Tunnel": [
+    {
+      "Local": {
+        "Network": "tcp",
+        "Address": ":6363"
+      },
+      "Remote": {
+        "Network": "tcp",
+        "Address": ":6364"
+      },
+      "Advertise": {
+        "Cost": 30,
+        "Interval": "1s"
+      },
+      "Undirected": true
+    }
+  ]
 }
 ```

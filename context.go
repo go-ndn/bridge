@@ -4,16 +4,45 @@ import (
 	"encoding/json"
 	"flag"
 	"os"
+	"time"
 
 	"github.com/go-ndn/ndn"
 )
 
-type context struct {
+type tunnel struct {
 	Local, Remote struct {
 		Network, Address string
 	}
+	Undirected bool
+	Advertise  struct {
+		Interval duration
+		Cost     uint64
+	}
+}
+
+type duration struct {
+	time.Duration
+}
+
+func (d *duration) UnmarshalJSON(b []byte) error {
+	var s string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+
+	tmp, err := time.ParseDuration(s)
+	if err != nil {
+		return err
+	}
+
+	d.Duration = tmp
+	return nil
+}
+
+type context struct {
+	Tunnel         []*tunnel
 	PrivateKeyPath string
-	Cost           uint64
 	Debug          bool    `json:"-"`
 	ConfigPath     string  `json:"-"`
 	Key            ndn.Key `json:"-"`

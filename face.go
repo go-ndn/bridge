@@ -68,58 +68,102 @@ func (f *face) fetchRoute() (rib []ndn.RIBEntry) {
 	return
 }
 
-func advertise(ctx *context, remote, local *face, d time.Duration) {
+func connect(ctx *context, tun *tunnel) {
+	// local face
+	local, err := newFace(ctx, tun.Local.Network, tun.Local.Address, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer local.Close()
+	// remote face
+	recv := make(chan *ndn.Interest)
+	remote, err := newFace(ctx, tun.Remote.Network, tun.Remote.Address, recv)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer remote.Close()
+
+	done := make(chan struct{})
+	defer close(done)
+
+	go advertise(ctx, &advertiseOptions{
+		Remote:   remote,
+		Local:    local,
+		Cost:     tun.Advertise.Cost,
+		Interval: tun.Advertise.Interval.Duration,
+		Done:     done,
+	})
+
+	// create remote tunnel
+	for i := range recv {
+		go local.ServeNDN(remote, i)
+	}
+}
+
+type advertiseOptions struct {
+	Remote, Local *face
+	Cost          uint64
+	Interval      time.Duration
+	Done          <-chan struct{}
+}
+
+func advertise(ctx *context, opt *advertiseOptions) {
 	// true = fresh, false = stale
 	registered := make(map[string]bool)
 	for {
-		localRoutes := local.fetchRoute()
-		remoteRoutes := remote.fetchRoute()
-		// for each name, find the best remote route.
-		index := make(map[string]uint64)
-		for _, routes := range remoteRoutes {
-			name := routes.Name.String()
-			for _, route := range routes.Route {
-				if cost, ok := index[name]; ok && cost <= route.Cost {
-					continue
+		select {
+		case <-opt.Done:
+			return
+		case <-time.After(opt.Interval):
+			localRoutes := opt.Local.fetchRoute()
+			remoteRoutes := opt.Remote.fetchRoute()
+			// for each name, find the best remote route.
+			index := make(map[string]uint64)
+			for _, routes := range remoteRoutes {
+				name := routes.Name.String()
+				for _, route := range routes.Route {
+					if cost, ok := index[name]; ok && cost <= route.Cost {
+						continue
+					}
+					index[name] = route.Cost
 				}
-				index[name] = route.Cost
 			}
-		}
-		// if any local route is not worse, mark the name as fresh.
-		// if the name is not registered, register it to remote.
-		for _, routes := range localRoutes {
-			name := routes.Name.String()
-			for _, route := range routes.Route {
-				advCost := route.Cost + ctx.Cost
-				if cost, ok := index[name]; ok && cost < advCost {
-					continue
+			// if any local route is not worse, mark the name as fresh.
+			// if the name is not registered, register it to remote.
+			for _, routes := range localRoutes {
+				name := routes.Name.String()
+				for _, route := range routes.Route {
+					advCost := route.Cost + opt.Cost
+					if cost, ok := index[name]; ok && cost < advCost {
+						continue
+					}
+					if _, ok := registered[name]; !ok {
+						err := opt.Remote.register(ctx, name, advCost)
+						if err != nil {
+							opt.Remote.Println(err)
+						}
+					}
+					registered[name] = true
+					break
 				}
-				if _, ok := registered[name]; !ok {
-					err := remote.register(ctx, name, advCost)
+			}
+			// sweep registered names.
+			// if the name is fresh, mark it as stale for the next iteration.
+			// otherwise, unregister, and clean up.
+			for name, fresh := range registered {
+				if fresh {
+					registered[name] = false
+				} else {
+					delete(registered, name)
+					err := opt.Remote.unregister(ctx, name)
 					if err != nil {
-						remote.Println(err)
+						opt.Remote.Println(err)
 					}
 				}
-				registered[name] = true
-				break
 			}
 		}
-		// sweep registered names.
-		// if the name is fresh, mark it as stale for the next iteration.
-		// otherwise, unregister, and clean up.
-		for name, fresh := range registered {
-			if fresh {
-				registered[name] = false
-			} else {
-				delete(registered, name)
-				err := remote.unregister(ctx, name)
-				if err != nil {
-					remote.Println(err)
-				}
-			}
-		}
-
-		time.Sleep(d)
 	}
 }
 
