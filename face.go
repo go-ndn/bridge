@@ -70,15 +70,16 @@ func (f *face) fetchRoute() (rib []ndn.RIBEntry) {
 
 func connect(ctx *context, tun *tunnel) {
 	// local face
-	local, err := newFace(ctx, tun.Local.Network, tun.Local.Address, nil)
+	recvLocal := make(chan *ndn.Interest)
+	local, err := newFace(ctx, tun.Local.Network, tun.Local.Address, recvLocal)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 	defer local.Close()
 	// remote face
-	recv := make(chan *ndn.Interest)
-	remote, err := newFace(ctx, tun.Remote.Network, tun.Remote.Address, recv)
+	recvRemote := make(chan *ndn.Interest)
+	remote, err := newFace(ctx, tun.Remote.Network, tun.Remote.Address, recvRemote)
 	if err != nil {
 		log.Println(err)
 		return
@@ -96,9 +97,30 @@ func connect(ctx *context, tun *tunnel) {
 		Done:     done,
 	})
 
+	if tun.Undirected {
+		go advertise(ctx, &advertiseOptions{
+			Remote:   local,
+			Local:    remote,
+			Cost:     tun.Advertise.Cost,
+			Interval: tun.Advertise.Interval.Duration,
+			Done:     done,
+		})
+	}
+
 	// create remote tunnel
-	for i := range recv {
-		go local.ServeNDN(remote, i)
+	for {
+		select {
+		case i, ok := <-recvLocal:
+			if !ok {
+				return
+			}
+			go remote.ServeNDN(local, i)
+		case i, ok := <-recvRemote:
+			if !ok {
+				return
+			}
+			go local.ServeNDN(remote, i)
+		}
 	}
 }
 

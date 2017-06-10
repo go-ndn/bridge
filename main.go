@@ -14,14 +14,9 @@ func main() {
 	}
 	log.Println("key", ctx.Key.Locator())
 
-	ch := make(chan *tunnel, 2*len(ctx.Tunnel))
+	ch := make(chan *tunnel, len(ctx.Tunnel))
 	for _, tun := range ctx.Tunnel {
 		ch <- tun
-		if tun.Undirected {
-			r := *tun
-			r.Local, r.Remote = r.Remote, r.Local
-			ch <- &r
-		}
 	}
 	for tun := range ch {
 		go func(tun *tunnel) {
