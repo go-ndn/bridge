@@ -53,19 +53,23 @@ func (f *face) unregister(ctx *context, name string) error {
 	}, ctx.Key)
 }
 
-func (f *face) fetchRoute() (rib []ndn.RIBEntry) {
-	tlv.Unmarshal(
-		f.Fetch(f,
-			&ndn.Interest{
-				Name: ndn.NewName("/localhop/nfd/rib/list"),
-				Selectors: ndn.Selectors{
-					MustBeFresh: true,
-				},
-			}),
-		&rib,
-		128,
-	)
-	return
+func (f *face) fetchRoute() ([]ndn.RIBEntry, error) {
+	content, err := f.Fetch(f,
+		&ndn.Interest{
+			Name: ndn.NewName("/localhop/nfd/rib/list"),
+			Selectors: ndn.Selectors{
+				MustBeFresh: true,
+			},
+		})
+	if err != nil {
+		return nil, err
+	}
+	var rib []ndn.RIBEntry
+	err = tlv.Unmarshal(content, &rib, 128)
+	if err != nil {
+		return nil, err
+	}
+	return rib, nil
 }
 
 func connect(ctx *context, tun *tunnel) {
@@ -139,8 +143,14 @@ func advertise(ctx *context, opt *advertiseOptions) {
 		case <-opt.Done:
 			return
 		case <-time.After(opt.Interval):
-			localRoutes := opt.Local.fetchRoute()
-			remoteRoutes := opt.Remote.fetchRoute()
+			localRoutes, err := opt.Local.fetchRoute()
+			if err != nil {
+				continue
+			}
+			remoteRoutes, err := opt.Remote.fetchRoute()
+			if err != nil {
+				continue
+			}
 			// for each name, find the best remote route.
 			index := make(map[string]uint64)
 			for _, routes := range remoteRoutes {
@@ -189,12 +199,12 @@ func advertise(ctx *context, opt *advertiseOptions) {
 	}
 }
 
-func (f *face) ServeNDN(w ndn.Sender, i *ndn.Interest) {
+func (f *face) ServeNDN(w ndn.Sender, i *ndn.Interest) error {
 	f.Println("forward", i.Name)
 	d, err := f.SendInterest(i)
 	if err != nil {
-		return
+		return err
 	}
 	f.Println("receive", d.Name)
-	w.SendData(d)
+	return w.SendData(d)
 }
